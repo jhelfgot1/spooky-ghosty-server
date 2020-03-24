@@ -1,0 +1,28 @@
+{
+  "name": "spooky-ghosty-server",
+  "version": "1.0.0",
+  "description": "Spooky ghosty backend server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhelfgot1/spooky-ghosty-server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jhelfgot1/spooky-ghosty-server/issues"
+  },
+  "homepage": "https://github.com/jhelfgot1/spooky-ghosty-server#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^5.9.6",
+    "socket.io": "^2.3.0"
+  },
+  "devDependencies": {
+    "firebase": "^7.12.0",
+    "nodemon": "^2.0.2"
+  }
+}
