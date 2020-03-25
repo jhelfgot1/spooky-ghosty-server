@@ -2,11 +2,15 @@ const bodyParser = require("body-parser");
 const socketIo = require("socket.io");
 const express = require("express");
 const http = require("http");
+var cors = require("cors");
+var path = require("path");
 
 const mongooseDriver = require("./database/databaseDriver.js");
 
 const app = express();
 app.use(bodyParser.json({ extended: true }));
+app.use(express.static("public"));
+app.use(cors());
 
 const httpServer = http.createServer(app);
 const io = socketIo(httpServer);
@@ -28,6 +32,10 @@ const blankPlayerTemplate = {
 };
 
 mongooseDriver.connect();
+
+app.get("/", function(req, res) {
+  res.sendFile(path.join(__dirname + "/views/index.html"));
+});
 
 app.post("/createGame", function(req, res) {
   const player = new mongooseDriver.Player({
