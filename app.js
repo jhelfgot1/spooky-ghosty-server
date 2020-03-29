@@ -40,6 +40,7 @@ app.get("/", function(req, res) {
 app.post("/createGame", function(req, res) {
   const player = new mongooseDriver.Player({
     ...blankPlayerTemplate,
+    isHost: true,
     name: req.body.name
   });
 
@@ -51,14 +52,13 @@ app.post("/createGame", function(req, res) {
       .toString(36)
       .slice(6)
   });
-
-  console.log(game.shortId);
   game.save((err, document) => {
     if (err) {
       console.log(err);
       next(err);
     } else {
-      res.send(document);
+      console.log(document);
+      res.send({ gameId: document._id, playerId: document.host._id });
     }
   });
 });
@@ -74,6 +74,7 @@ app.post("/joinGame", function(req, res) {
       game.players.push(
         new mongooseDriver.Player({
           ...blankPlayerTemplate,
+          isHost: false,
           name: req.body.name
         })
       );
@@ -91,9 +92,21 @@ app.post("/joinGame", function(req, res) {
 });
 
 io.on("connection", function(socket) {
-  console.log("A user Connected");
+  const { gameId, playerId } = socket.handshake.query;
+  console.log(`${playerId} connecting to ${gameId}`);
+
+  mongooseDriver.Game.findOne({ _id: gameId }, (err, game) => {
+    console.log(game.players[0].name);
+    if (game.host._id == playerId) {
+      console.log("Host Connected To Socket!");
+      socket.join(game._id);
+      io.sockets.in(game._id).emit("gameState", game);
+    } else {
+      console.log("Non host joining!");
+    }
+  });
 });
 
-app.listen(port, () => {
+httpServer.listen(port, () => {
   console.log(`Listening to requests on http://localhost:${port}`);
 });

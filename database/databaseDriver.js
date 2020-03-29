@@ -9,22 +9,15 @@ const PlayerSchema = new Schema({
   name: String,
   isDevil: Boolean,
   isEvil: Boolean,
-  isAlive: Boolean
+  isAlive: Boolean,
+  isHost: Boolean
 });
 
 const Player = mongoose.model("Player", PlayerSchema);
 
 const GameSchema = new Schema({
-  players: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Player"
-    }
-  ],
-  host: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Player"
-  },
+  players: [PlayerSchema],
+  host: PlayerSchema,
   shortId: String,
   active: Boolean
 });
