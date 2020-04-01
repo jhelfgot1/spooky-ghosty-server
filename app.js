@@ -25,8 +25,8 @@ const blankGameTemplate = {
 };
 
 const blankPlayerTemplate = {
-  isDevil: false,
-  isEvil: false,
+  isDarsh: false,
+  isTeamDarsh: false,
   isAlive: false,
   name: ""
 };
@@ -69,41 +69,77 @@ app.post("/joinGame", function(req, res) {
       console.log(err);
       next(err);
     } else {
+      if (!game) {
+        console.log("Did not find game!");
+        return;
+      }
       console.log("Found game!");
-
-      game.players.push(
-        new mongooseDriver.Player({
-          ...blankPlayerTemplate,
-          isHost: false,
-          name: req.body.name
-        })
-      );
+      const newPlayer = new mongooseDriver.Player({
+        ...blankPlayerTemplate,
+        isHost: false,
+        name: req.body.name
+      });
+      game.players.push(newPlayer);
 
       game.save((err, document) => {
         if (err) {
           console.log(err);
           next(err);
         } else {
-          res.send(document);
+          res.send({ gameId: document._id, playerId: newPlayer._id });
         }
       });
     }
   });
 });
 
+function getNumPlayersPerTeam(numPlayers) {
+  if (numPlayers % 2 === 0) {
+    return {
+      numTeamDarsh: numPlayers / 2 - 1,
+      numTeamHumanity: numPlayers / 2 + 1
+    };
+  } else {
+    return {
+      numTeamDarsh: Math.floor(numPlayers / 2),
+      numTeamHumanity: Math.ciel(numPlayers / 2)
+    };
+  }
+}
+
+function startGame(game) {
+  game.active = active;
+  const { numFascists, numLiberals } = getNumPlayersPerTeam(
+    game.players.length
+  );
+
+  //ToDO assign roles
+}
+
 io.on("connection", function(socket) {
-  const { gameId, playerId } = socket.handshake.query;
-  console.log(`${playerId} connecting to ${gameId}`);
+  socket.on("startGame", function(socket) {
+    mongooseDriver.Game.findOne({ _id: gameId }, (err, game) => {
+      if (err) {
+        console.log(err);
+      } else {
+        if (!game) {
+          console.log("No Game Found");
+        } else {
+          game.active = true;
+
+          game.save((err, game) => {
+            io.sockets.in(game._id).emit("gameState", game);
+          });
+        }
+      }
+    });
+  });
+
+  const { gameId } = socket.handshake.query;
 
   mongooseDriver.Game.findOne({ _id: gameId }, (err, game) => {
-    console.log(game.players[0].name);
-    if (game.host._id == playerId) {
-      console.log("Host Connected To Socket!");
-      socket.join(game._id);
-      io.sockets.in(game._id).emit("gameState", game);
-    } else {
-      console.log("Non host joining!");
-    }
+    socket.join(game._id);
+    io.sockets.in(game._id).emit("gameState", game);
   });
 });
 

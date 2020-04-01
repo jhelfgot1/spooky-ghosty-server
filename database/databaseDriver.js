@@ -7,8 +7,8 @@ const mongoDBUrl = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PA
 
 const PlayerSchema = new Schema({
   name: String,
-  isDevil: Boolean,
-  isEvil: Boolean,
+  isDarsh: Boolean,
+  isTeamDarsh: Boolean,
   isAlive: Boolean,
   isHost: Boolean
 });
