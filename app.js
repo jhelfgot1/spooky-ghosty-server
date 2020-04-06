@@ -65,7 +65,6 @@ app.post("/joinGame", function(req, res) {
         console.log("Did not find game!");
         return;
       }
-      console.log("Found game!");
       const newPlayer = new mongooseDriver.Player({
         ...mongooseDriver.blankPlayerTemplate,
         isHost: false,
@@ -114,6 +113,20 @@ function getNumTeamDarsh(numPlayers) {
   }
 }
 
+function setInvalidChancellors(game, ...invalidChancellors) {
+  if (invalidChancellors.length == 0) {
+    return;
+  }
+
+  game.validChancellors = game.players.filter(
+    player => !invalidChancellors.includes(player._id)
+  );
+
+  game.validChancellors = game.validChancellors.map(player => player._id);
+
+  return;
+}
+
 function startGame(game) {
   const assignRole = (player, isTeamDarsh, isDarsh) => {
     player.isTeamDarsh = isTeamDarsh;
@@ -121,10 +134,10 @@ function startGame(game) {
   };
 
   game.active = true;
-  const numTeamDarsh = getNumTeamDarsh(game.players.length);
-
-  game.president = game.players[0];
   game.president = game.players[0]._id;
+  setInvalidChancellors(game, game.president);
+
+  const numTeamDarsh = getNumTeamDarsh(game.players.length);
 
   for (let i = 0; i < numTeamDarsh; i++) {
     if (i === 0) {
@@ -134,11 +147,45 @@ function startGame(game) {
     }
   }
 
-  for (let i = 1; i < game.players.length; i++) {
-    game.validChancellors.push(game.players[i]._id);
-  }
-
   votingCache.createCacheForGame(game._id, game.players.length);
+}
+
+function handleThreeFailedElections(game) {
+  console.log("TODO: Handle three sequential failed elections");
+}
+
+function transitionPresident(game) {
+  if (!game) {
+    console.error(
+      "No Game agument passed to: function transitionPresident(game) {}"
+    );
+  }
+  for (let i = 0; i < game.players.length; i++) {
+    console.log(game.players[i]._id);
+    console.log(game.president);
+    if (game.players[i]._id.equals(game.president)) {
+      let j = i + 1;
+      while (j < i + game.players.length) {
+        const potentialNextPresident = game.players[j % game.players.length];
+        if (
+          potentialNextPresident.isAlive &&
+          potentialNextPresident != game.president
+        ) {
+          setInvalidChancellors(
+            game,
+            game.president,
+            potentialNextPresident._id,
+            game.chancellor
+          );
+          game.president = potentialNextPresident._id;
+          return;
+        }
+        j++;
+      }
+      console.error("No Valid President Found");
+      return;
+    }
+  }
 }
 
 io.on("connection", function(socket) {
@@ -153,7 +200,6 @@ io.on("connection", function(socket) {
           startGame(game);
 
           game.save((err, game) => {
-            console.log(game);
             io.sockets.in(game._id).emit("gameState", game);
           });
         }
@@ -202,7 +248,6 @@ io.on("connection", function(socket) {
   });
 
   socket.on("votingOnChancellor", function(data) {
-    console.log("VOTING ON CHANCELLOR");
     const { gameId, playerId, vote } = data;
     if (vote === true) {
       if (!votingCache.voteYes(gameId, playerId)) {
@@ -217,7 +262,6 @@ io.on("connection", function(socket) {
     }
 
     if (votingCache.gameHasFinishedVotingSession(gameId)) {
-      console.log("Voting done!");
       const voteResult = votingCache.getVoteResult(gameId);
 
       mongooseDriver.Game.findById(gameId, (err, game) => {
@@ -233,18 +277,21 @@ io.on("connection", function(socket) {
 
         votingCache.clearVotingCacheForGame(game._id);
 
-        game.chancellor = game.nominatedChancellor;
-        game.nominatedChancellor = Schema.ObjectId("");
-        game.currentStep = GameSteps.IN_SESSION;
+        if (voteResult) {
+          game.chancellor = game.nominatedChancellor;
+          game.nominatedChancellor = Schema.ObjectId("");
+          game.currentStep = GameSteps.IN_SESSION;
+          game.failedElections = 0;
+        } else {
+          transitionPresident(game);
 
-        game.validChancellors = [];
-        for (let i = 0; i < game.players.length; i++) {
-          if (
-            game.players[i] != game.president &&
-            game.players[i] != game.chancellor
-          ) {
-            game.validChancellors.push(game.players[i]._id);
+          game.failedElections++;
+
+          if (game.failedElections === 3) {
+            handleThreeFailedElections(game);
           }
+          game.nominatedChancellor = Schema.ObjectId("");
+          game.currentStep = GameSteps.NOMINATING_CHANCELLOR;
         }
 
         game.save((err, game) => {
@@ -255,8 +302,6 @@ io.on("connection", function(socket) {
           io.sockets.in(game._id).emit("gameState", game);
         });
       });
-    } else {
-      console.log("Voting not done!...");
     }
   });
 

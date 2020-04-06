@@ -24,6 +24,7 @@ const GameSchema = new Schema({
   shortId: String,
   active: Boolean,
   currentStep: String,
+  failedElections: Number,
   validChancellors: [{ type: Schema.ObjectId, ref: "Player" }]
 });
 
@@ -47,7 +48,8 @@ const blankGameTemplate = {
   players: [],
   host: {},
   validChancellors: [],
-  currentStep: GameSteps.NOMINATING_CHANCELLOR
+  currentStep: GameSteps.NOMINATING_CHANCELLOR,
+  failedElections: 0
 };
 
 const blankPlayerTemplate = {

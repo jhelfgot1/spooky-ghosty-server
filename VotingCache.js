@@ -45,7 +45,6 @@ class VotingCache {
   }
 
   createCacheForGame(gameId, numPlayers) {
-    console.log("Creating Cache for game", gameId);
     this.cache[gameId] = new VotingCacheElement(numPlayers);
   }
 
